@@ -376,6 +376,10 @@ ArduPilotPlugin::ArduPilotPlugin()
 {
   this->dataPtr->arduPilotOnline = false;
   this->dataPtr->connectionTimeoutCount = 0;
+  for(int i = 0; i < MAX_MOTORS; i++)
+    {
+      this->rpms[i] = this->NO_RPM;
+    }
 }
 
 /////////////////////////////////////////////////
@@ -832,6 +836,26 @@ void ArduPilotPlugin::Load(physics::ModelPtr _model, sdf::ElementPtr _sdf)
 
   gzlog << "[" << this->dataPtr->modelName << "] "
         << "ArduPilot ready to fly. The force will be with you" << std::endl;
+
+  if (!ros::isInitialized())
+    {
+      int argc = 0;
+      char **argv = NULL;
+      ros::init(argc, argv, "gazebo_ardu_client",
+      ros::init_options::NoSigintHandler);
+    }
+  else
+    {
+      gzdbg << "ROS is initialised" << std::endl;
+    }
+  // Create our ROS node. This acts in a similar manner to
+  // the Gazebo node
+  this->rosNode.reset(new ros::NodeHandle("gazebo_ardu_client"));
+
+  this->r0_sub = this->rosNode->subscribe("/" + this->dataPtr->modelName + "/chan_0",1, &ArduPilotPlugin::r0_channel_cb, this);
+  this->r1_sub = this->rosNode->subscribe("/" + this->dataPtr->modelName + "/chan_1",1, &ArduPilotPlugin::r1_channel_cb, this);
+  this->r2_sub = this->rosNode->subscribe("/" + this->dataPtr->modelName + "/chan_2",1, &ArduPilotPlugin::r2_channel_cb, this);
+  this->r3_sub = this->rosNode->subscribe("/" + this->dataPtr->modelName + "/chan_3",1, &ArduPilotPlugin::r3_channel_cb, this);
 }
 
 /////////////////////////////////////////////////
@@ -1064,21 +1088,31 @@ void ArduPilotPlugin::ReceiveMotorCommand()
       {
         if (this->dataPtr->controls[i].channel < recvChannels)
         {
-          // bound incoming cmd between 0 and 1
-          const double cmd = ignition::math::clamp(
-            pkt.motorSpeed[this->dataPtr->controls[i].channel],
-            -1.0f, 1.0f);
-          this->dataPtr->controls[i].cmd =
-            this->dataPtr->controls[i].multiplier *
-            (this->dataPtr->controls[i].offset + cmd);
-          // gzdbg << "apply input chan[" << this->dataPtr->controls[i].channel
-          //       << "] to control chan[" << i
-          //       << "] with joint name ["
-          //       << this->dataPtr->controls[i].jointName
-          //       << "] raw cmd ["
-          //       << pkt.motorSpeed[this->dataPtr->controls[i].channel]
-          //       << "] adjusted cmd [" << this->dataPtr->controls[i].cmd
-          //       << "].\n";
+          bool sitl_mode = true;
+          if(this->MIN_RPM <= this->rpms[i] && this->rpms[i] <= this->MAX_RPM)
+          {
+            this->dataPtr->controls[i].cmd = this->rpms[i];
+            sitl_mode = false;
+           }
+           else
+           {
+             // bound incoming cmd between 0 and 1
+                           const double cmd = ignition::math::clamp(
+                            pkt.motorSpeed[this->dataPtr->controls[i].channel],
+                            -1.0f, 1.0f);
+
+                           this->dataPtr->controls[i].cmd =
+                             this->dataPtr->controls[i].multiplier *
+                             (this->dataPtr->controls[i].offset + cmd);
+           }
+    // gzdbg << "apply input chan[" << this->dataPtr->controls[i].channel
+    //       << "] to control chan[" << i
+    //       << "] with joint name ["
+    //       << this->dataPtr->controls[i].jointName
+    //       << "] raw cmd ["
+    //       << pkt.motorSpeed[this->dataPtr->controls[i].channel]
+    //       << "] adjusted cmd/rpms [" << this->dataPtr->controls[i].cmd
+    //       << "] " << "sitl_mode: " << sitl_mode << " rpm: " << this->rpms[i] << ".\n";
         }
         else
         {
@@ -1220,4 +1254,28 @@ void ArduPilotPlugin::SendState() const
    // pkt.airspeed = (pkt.velocity - wind).length()
 */
   this->dataPtr->socket_out.Send(&pkt, sizeof(pkt));
+}
+
+void ArduPilotPlugin::r0_channel_cb(const std_msgs::Int32::ConstPtr& msg)
+{
+  gzdbg << "r0_channel_cb " << msg->data << std::endl;
+  this->rpms[0] = msg->data;
+}
+
+void ArduPilotPlugin::r1_channel_cb(const std_msgs::Int32::ConstPtr& msg)
+{
+  gzdbg << "r1_channel_cb " << msg->data << std::endl;
+  this->rpms[1] = msg->data;
+}
+
+void ArduPilotPlugin::r2_channel_cb(const std_msgs::Int32::ConstPtr& msg)
+{
+  gzdbg << "r2_channel_cb " << msg->data << std::endl;
+  this->rpms[2] = msg->data;
+}
+
+void ArduPilotPlugin::r3_channel_cb(const std_msgs::Int32::ConstPtr& msg)
+{
+  gzdbg << "r3_channel_cb " << msg->data << std::endl;
+  this->rpms[3] = msg->data;
 }

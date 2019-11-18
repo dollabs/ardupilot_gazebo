@@ -21,6 +21,15 @@
 #include <gazebo/common/common.hh>
 #include <gazebo/physics/physics.hh>
 
+// Modeled after Velodyne example
+// http://gazebosim.org/tutorials?tut=guided_i6&cat=
+// Having a separate thread to process ROS messages does not seem to be necessary
+//#include <thread>
+#include "ros/ros.h"
+#include "std_msgs/Int32.h"
+//#include "ros/callback_queue.h"
+//#include "ros/subscribe_options.h"
+
 namespace gazebo
 {
   // Forward declare private data class
@@ -91,6 +100,23 @@ namespace gazebo
 
     /// \brief transform from world frame to NED frame
     private: ignition::math::Pose3d gazeboXYZToNED;
+
+    /// \brief This node is for ros communications
+    protected: std::unique_ptr<ros::NodeHandle> rosNode;
+
+    private: int rpms[255]; // Same as MAX_MOTORS/255. Values can range from -838 to +838. See iris_with_ardupilot/model.sdf file
+    protected: ros::Subscriber r0_sub; //To hold rpm value at index 0 corresponding to channel 0
+    protected: ros::Subscriber r1_sub;
+    protected: ros::Subscriber r2_sub;
+    protected: ros::Subscriber r3_sub;
+
+    public: void r0_channel_cb(const std_msgs::Int32::ConstPtr& msg);
+    public: void r1_channel_cb(const std_msgs::Int32::ConstPtr& msg);
+    public: void r2_channel_cb(const std_msgs::Int32::ConstPtr& msg);
+    public: void r3_channel_cb(const std_msgs::Int32::ConstPtr& msg);
+    public: static const int MIN_RPM = -838;
+    public: static const int MAX_RPM = 838;
+    public: static const int NO_RPM = 1000; // for any value > 838 and < -838, we will use stil provided cmd
   };
 }
 #endif
