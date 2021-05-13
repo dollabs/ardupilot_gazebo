@@ -27,6 +27,7 @@
 //#include <thread>
 #include "ros/ros.h"
 #include "std_msgs/Int32.h"
+#include "std_msgs/Int32MultiArray.h"
 //#include "ros/callback_queue.h"
 //#include "ros/subscribe_options.h"
 
@@ -109,7 +110,8 @@ namespace gazebo
     protected: ros::Subscriber r1_sub;
     protected: ros::Subscriber r2_sub;
     protected: ros::Subscriber r3_sub;
-
+    protected: ros::Publisher  rotor_pub;
+    std_msgs::Int32MultiArray rotor_array;
     public: void r0_channel_cb(const std_msgs::Int32::ConstPtr& msg);
     public: void r1_channel_cb(const std_msgs::Int32::ConstPtr& msg);
     public: void r2_channel_cb(const std_msgs::Int32::ConstPtr& msg);

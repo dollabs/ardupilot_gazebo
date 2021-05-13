@@ -856,6 +856,8 @@ void ArduPilotPlugin::Load(physics::ModelPtr _model, sdf::ElementPtr _sdf)
   this->r1_sub = this->rosNode->subscribe("/" + this->dataPtr->modelName + "/chan_1",1, &ArduPilotPlugin::r1_channel_cb, this);
   this->r2_sub = this->rosNode->subscribe("/" + this->dataPtr->modelName + "/chan_2",1, &ArduPilotPlugin::r2_channel_cb, this);
   this->r3_sub = this->rosNode->subscribe("/" + this->dataPtr->modelName + "/chan_3",1, &ArduPilotPlugin::r3_channel_cb, this);
+
+  this->rotor_pub = this->rosNode->advertise<std_msgs::Int32MultiArray>("/" + this->dataPtr->modelName + "/rotors_out",1);
 }
 
 /////////////////////////////////////////////////
@@ -1082,6 +1084,7 @@ void ArduPilotPlugin::ReceiveMotorCommand()
     }
 
     // compute command based on requested motorSpeed
+    this->rotor_array.data.clear();
     for (unsigned i = 0; i < this->dataPtr->controls.size(); ++i)
     {
       if (i < MAX_MOTORS)
@@ -1123,6 +1126,7 @@ void ArduPilotPlugin::ReceiveMotorCommand()
                 << recvChannels
                 << "], control not applied.\n";
         }
+        this->rotor_array.data.push_back(this->dataPtr->controls[i].cmd);
       }
       else
       {
@@ -1131,6 +1135,7 @@ void ArduPilotPlugin::ReceiveMotorCommand()
               << " > " << MAX_MOTORS << "].\n";
       }
     }
+    this->rotor_pub.publish(rotor_array);
   }
 }
 
